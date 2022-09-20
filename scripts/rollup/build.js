@@ -92,6 +92,7 @@ const forcePrettyOutput = argv.pretty;
 const isWatchMode = argv.watch;
 const syncFBSourcePath = argv['sync-fbsource'];
 const syncWWWPath = argv['sync-www'];
+const isDebug = !!argv.debug;
 
 const closureOptions = {
   compilation_level: 'SIMPLE',
@@ -197,7 +198,7 @@ function getRollupOutputOptions(
     freeze: !isProduction,
     interop: false,
     name: globalName,
-    sourcemap: false,
+    sourcemap: isDebug,
     esModule: false,
   };
 }
@@ -349,7 +350,7 @@ function getPlugins(
       )
     ),
     // Remove 'use strict' from individual source files.
-    {
+    !isDebug && {
       transform(source) {
         return source.replace(/['"]use strict["']/g, '');
       },
@@ -370,7 +371,7 @@ function getPlugins(
     // Please don't enable this for anything else!
     isUMDBundle && entry === 'react-art' && commonjs(),
     // Apply dead code elimination and/or minification.
-    isProduction &&
+    !isDebug && isProduction &&
       closure(
         Object.assign({}, closureOptions, {
           // Don't let it create global variables in the browser.
@@ -381,9 +382,9 @@ function getPlugins(
       ),
     // HACK to work around the fact that Rollup isn't removing unused, pure-module imports.
     // Note that this plugin must be called after closure applies DCE.
-    isProduction && stripUnusedImports(pureExternalModules),
+    !isDebug && isProduction && stripUnusedImports(pureExternalModules),
     // Add the whitespace back if necessary.
-    shouldStayReadable &&
+    !isDebug && shouldStayReadable &&
       prettier({
         parser: 'babel',
         singleQuote: false,
@@ -391,7 +392,7 @@ function getPlugins(
         bracketSpacing: true,
       }),
     // License and haste headers, top-level `if` blocks.
-    {
+    !isDebug && {
       renderChunk(source) {
         return Wrappers.wrapBundle(
           source,
